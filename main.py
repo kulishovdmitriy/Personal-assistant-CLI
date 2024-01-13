@@ -1,7 +1,7 @@
 from collections import UserDict
 from datetime import datetime
 import pickle
-
+from clean import main as clean
 
 class Field:
     def __init__(self, value):
@@ -170,3 +170,7 @@ class AddressBook(UserDict):
                     results.append(record)
 
         return results
+
+class Clean():
+    def sort_folder(self, file_path):
+        clean(file_path)
