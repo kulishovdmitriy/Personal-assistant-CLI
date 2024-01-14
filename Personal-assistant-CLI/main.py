@@ -3,6 +3,11 @@ from datetime import datetime
 import pickle
 from clean import main as clean
 
+class Clean:
+    def sort_folder(self, file_path):
+        clean(file_path)
+
+
 class Field:
     def __init__(self, value):
         self._value = value
@@ -171,6 +176,7 @@ class AddressBook(UserDict):
 
         return results
 
-class Clean():
-    def sort_folder(self, file_path):
-        clean(file_path)
+
+#Перевірка сортування
+f = Clean()
+f.sort_folder("C:\Python\Мотлох")
