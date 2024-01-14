@@ -40,10 +40,11 @@ class Phone(Field):
 
 
 class Record:
-    def __init__(self, name, birthday=None):
+    def __init__(self, name, birthday=None, note=None):
         self.name = Name(name)
         self.phones = []
         self.birthday = Birthday(birthday) if birthday else None
+        self.note = Note(note) if note else None
 
     def add_phone(self, phone):
         if Phone.validate_phone(phone):
@@ -91,9 +92,26 @@ class Record:
         else:
             return None
 
+    def add_note_with_tags(self, note_value, tags=None):
+        self.note = Note(note_value, tags)
+
+    def add_tag_to_note(self, tag):
+        if self.note:
+            self.note.add_tag(tag)
+
+    def remove_tag_from_note(self, tag):
+        if self.note:
+            self.note.remove_tag(tag)
+
+    def search_by_tag(self, tag):
+        return self.note and self.note.search_tag(tag)
+
     def __str__(self):
         birthday_info = f", Birthday: {self.birthday.value}" if self.birthday else ""
-        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}{birthday_info}"
+        note_info = f", {self.note}" if self.note else ""
+        return (f""
+                f"Contact name: {self.name.value}, "
+                f"phones: {'; '.join(p.value for p in self.phones)}{birthday_info}{note_info}")
 
 
 class Birthday(Field):
@@ -125,10 +143,48 @@ class AddressBook(UserDict):
         if self._index >= len(self._keys):
             raise StopIteration
 
-        keys_chunk = self._keys[self._index:self._index+self._chunk_size]
+        keys_chunk = self._keys[self._index:self._index + self._chunk_size]
         records_chunk = [self.data[key] for key in keys_chunk]
         self._index += self._chunk_size
         return records_chunk
+
+    def add_note_to_contact_with_tags(self, name, note_value, tags=None):
+        record = self.find(name)
+        if record:
+            record.add_note_with_tags(note_value, tags)
+            return f"Note added to contact {name} with tags {tags}"
+        else:
+            return f"Contact {name} not found"
+
+    def add_tag_to_note_of_contact(self, name, tag):
+        record = self.find(name)
+        if record:
+            record.add_tag_to_note(tag)
+            return f"Tag {tag} added to note of contact {name}"
+        else:
+            return f"Contact {name} not found"
+
+    def remove_tag_from_note_of_contact(self, name, tag):
+        record = self.find(name)
+        if record:
+            record.remove_tag_from_note(tag)
+            return f"Tag {tag} removed from note of contact {name}"
+        else:
+            return f"Contact {name} not found"
+
+    def search_notes_by_tag(self, tag):
+        results = []
+        for record in self.data.values():
+            if record.note and tag in record.note.tags:
+                results.append(record)
+        return results
+
+    def sort_notes_by_tag(self, tag):
+        sorted_records = sorted(
+            filter(lambda r: r.note and tag in r.note.tags, self.data.values()),
+            key=lambda r: r.note.tags.index(tag) if tag in r.note.tags else float('inf')
+        )
+        return sorted_records
 
     def add_record(self, record):
         self.data[record.name.value] = record
@@ -201,20 +257,23 @@ def input_error(*type_args):
                 res = None
 
             return res
+
         return wrapper
+
     return args_parser
 
 
 @input_error(str)
-def add_contact(name):
+def add_contact(address_book, name):
     record = Record(name)
-    return record 
+    address_book.add_record(record)
+    return f"Contact {name} added"
 
-@input_error(str,int)
-def add_phone(name,phone):
+
+@input_error(str, int)
+def add_phone(name, phone):
     name.add_phone(phone)
     return f"Add phone:{phone}"
-
 
 
 @input_error()
@@ -223,18 +282,45 @@ def hello_handler():
 
 
 @input_error(str, int)
-def change_handler(name, number):
-    Contacts[name] = number
-    return f"Change name:{name}, phone number:{number}"
+def change_handler(adsress_book, name, number):
+    record = adsress_book.find(name)
+    if record:
+        record.add_phone(number)
+        return f"Change name:{name}, phone number:{number}"
+    else:
+        return f"Contact {name} not found"
 
 
 @input_error(str)
-def phone_handler(name):
-    number = Contacts[name]
-    return f"Phone number:{number}"
+def phone_handler(adsress_book, name):
+    record = adsress_book.find(name)
+    if record:
+        return f"Phone number: {record.phone[0].value}" if record.phones else f"No phone number for {name}"
+
+
+class Note(Field):
+    def __init__(self, value, tags=None):
+        super().__init__(value)
+        self.tags = tags if tags else []
+
+    def add_tag(self, tag):
+        if tag not in self.tags:
+            self.tags.append(tag)
+
+    def remove_tag(self, tag):
+        if tag in self.tags:
+            self.tags.remove(tag)
+
+    def search_tag(self, tag):
+        return tag in self.tags
+
+    def __str__(self):
+        tags_info = f"Tags: {', '.join(self.tags)}" if self.tags else ""
+        return f"Note: {self.value} ({tags_info})"
 
 
 def main():
+    address_book = AddressBook()
 
     while True:
 
@@ -245,26 +331,24 @@ def main():
             print("Good bye!")
             break
         elif user_input == "show all":
-            print(Contacts)
+            print(address_book)
             continue
 
         items = user_input.split(" ")
         handler_name, *args = items
 
-        if Comands.get(handler_name) is not None:
-            print(Comands[handler_name](args))
+        if Commands.get(handler_name) is not None:
+            print(Commands[handler_name](address_book, args))
         else:
             print("No such command")
 
 
 if __name__ == "__main__":
-
-    Comands = {
+    Commands = {
         "hello": hello_handler,
         "add": add_contact,
         "change": change_handler,
         "phone": phone_handler,
     }
-    Contacts = AddressBook
 
     main()
