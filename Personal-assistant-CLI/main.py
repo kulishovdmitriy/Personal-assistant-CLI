@@ -24,6 +24,18 @@ class Name(Field):
     pass
 
 
+class Email(Field):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = value
+
+
+class Address(Field):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = value
+
+
 class Phone(Field):
     def __init__(self, value):
         super().__init__(value)
@@ -65,6 +77,8 @@ class Record:
     def __init__(self, name, birthday=None, note=None):
         self.name = Name(name)
         self.phones = []
+        self.email = None
+        self.address = None
         self.birthday = Birthday(birthday) if birthday else None
         self.note = Note(note) if note else None
 
@@ -101,6 +115,22 @@ class Record:
         self.phones = [p for p in self.phones if p.value != phone]
         return "Phone number {phone} removed"
 
+    def add_email(self, email):
+        if self.validate_email(email):
+            self.email = Email(email)
+        else:
+            raise ValueError("Invalid email format")
+
+    def edit_email(self, new_email):
+        if self.validate_email(new_email):
+            self.email.value = new_email
+        else:
+            raise ValueError("Invalid email format")
+
+    @staticmethod
+    def validate_email(email):
+        return '@' in email
+
     def days_to_birthday(self):
         if self.birthday:
             today = datetime.now().date()
@@ -128,12 +158,21 @@ class Record:
     def search_by_tag(self, tag):
         return self.note and self.note.search_tag(tag)
 
+    def add_address(self, address):
+        self.address = Address(address)
+
+    def edit_address(self, new_address):
+        self.address.value = new_address
+
     def __str__(self):
+        phones_info = '; '.join(p.value for p in self.phones)
+        email_info = f", Email: {self.email}" if self.email else ""
+        address_info = f", Address: {self.address}" if self.address else ""
         birthday_info = f", Birthday: {self.birthday.value}" if self.birthday else ""
         note_info = f", {self.note}" if self.note else ""
-        return (f""
-                f"Contact name: {self.name.value}, "
-                f"phones: {'; '.join(p.value for p in self.phones)}{birthday_info}{note_info}")
+
+        return (f"Contact name: {self.name.value}, "
+                f"phones: {phones_info}{email_info}{address_info}{birthday_info}{note_info}")
 
 
 class Birthday(Field):
@@ -300,20 +339,50 @@ def add_phone(name, phone):
     return f"Contact {name} Add phone:{phone}"
 
 
-def change_handler(name, number):
+def change_handler(name, new_number):
     record = address_book.find(name)
     if record:
-        record.add_phone(number)
+        record.phones = []
+        record.add_phone(new_number)
         address_book.save_to_file("address_book.pkl")
-        return f"Change name:{name}, phone number:{number}"
-    else:
-        return f"Contact {name} not found"
+        return f"Change name:{name}, phone number:{new_number}"
 
 
 def phone_handler(name):
     record = address_book.find(name)
     if record:
-        return f"Phone number: {record.phone[0].value}" if record.phones else f"No phone number for {name}"
+        return f"Phone number: {record.phones[0].value}" if record.phones else f"No phone number for {name}"
+
+
+def add_email_handler(name, email):
+    record = address_book.find(name)
+    if record:
+        try:
+            record.add_email(email)
+            address_book.save_to_file("address_book.pkl")
+            return f"Email added to contact {name}"
+        except ValueError as e:
+            return f"Error: {e}"
+    else:
+        return f"Contact {name} not found"
+
+
+def add_address_handler(name, address):
+    record = address_book.find(name)
+    if record:
+        record.add_address(address)
+        address_book.save_to_file("address_book.pkl")
+        return f"Address added to contact {name}"
+    else:
+        return f"Contact {name} not found"
+
+
+def print_contact_info(name):
+    record = address_book.find(name)
+    if record:
+        print(record)
+    else:
+        print(f"Contact {name} not found")
 
 
 def load():
@@ -338,6 +407,15 @@ def main():
             print("How can I help you?")
             continue
 
+        elif user_input.startswith("add_email"):
+            _, name, email = user_input.split(" ", 2)
+
+        elif user_input.startswith("add_address"):
+            _, name, address = user_input.split(" ", 2)
+
+        elif user_input.startswith("print_contact_info"):
+            _, name = user_input.split(" ", 1)
+
         items = user_input.split(" ")
         handler_name, *args = items
 
@@ -352,11 +430,17 @@ address_book = AddressBook()
 Commands = {
     "sort": clean,
     "load": load,
-    "add": add_contact,
-    "add_phone": add_phone,
-    "change": change_handler,
-    "phone": phone_handler,
+    "add": add_contact,  # создание нового контакта работает
+    "add_phone": add_phone,  # добавление номера к контакту работает
+    "change": change_handler,  # редактирование
+    "phone": phone_handler,  # поиск номера по имени работает
+    "add_email": add_email_handler,  # добавление email к контакту работает
+    "add_address": add_address_handler,  # добавление адресса к контакту работает
+    "info": print_contact_info  # информация о контакте работает
+
+
 }
+
 
 if __name__ == "__main__":
     main()
