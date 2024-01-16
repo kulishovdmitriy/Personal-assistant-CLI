@@ -390,6 +390,31 @@ def load():
     return address_book
 
 
+def search_handler(query):
+    results = address_book.search(query)
+    if results:
+        return "\n".join(str(record) for record in results)
+    else:
+        return "No matching contacts found"
+
+
+def search_handler(query=None):
+    if query is not None:
+        results = address_book.search(query)
+        if results:
+            return "\n".join(str(record) for record in results)
+        else:
+            return "No matching contacts found"
+    else:
+        return "Please provide a query for search"
+
+
+def delete_contact_handler(name):
+    result = address_book.delete(name)
+    address_book.save_to_file("address_book.pkl")
+    return result
+
+
 def main():
 
     while True:
@@ -436,7 +461,10 @@ Commands = {
     "phone": phone_handler,  # поиск номера по имени работает
     "add_email": add_email_handler,  # добавление email к контакту работает
     "add_address": add_address_handler,  # добавление адресса к контакту работает
-    "info": print_contact_info  # информация о контакте работает
+    "info": print_contact_info,  # информация о контакте работает
+    "search": search_handler,
+    "edit_contact": change_handler,
+    "delete_contact": delete_contact_handler
 
 
 }
