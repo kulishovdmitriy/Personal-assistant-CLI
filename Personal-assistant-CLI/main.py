@@ -2,6 +2,7 @@ from collections import UserDict
 from datetime import datetime
 import pickle
 from clean import main as clean
+from datetime import datetime
 
 
 class Field:
@@ -333,10 +334,13 @@ def add_contact(name):
 
 def add_phone(name, phone):
     record = address_book.find(name)
-    record.add_phone(phone)
-    address_book.add_record(record)
-    address_book.save_to_file("address_book.pkl")
-    return f"Contact {name} Add phone:{phone}"
+    try:
+        record.add_phone(phone)
+        address_book.add_record(record)
+        address_book.save_to_file("address_book.pkl")
+        return f"Contact {name} added. Phone number: {phone}"
+    except ValueError as e:
+        return f"Error: {e}"
 
 
 def change_handler(name, new_number):
@@ -356,15 +360,12 @@ def phone_handler(name):
 
 def add_email_handler(name, email):
     record = address_book.find(name)
-    if record:
-        try:
-            record.add_email(email)
-            address_book.save_to_file("address_book.pkl")
-            return f"Email added to contact {name}"
-        except ValueError as e:
-            return f"Error: {e}"
-    else:
-        return f"Contact {name} not found"
+    try:
+        record.add_email(email)
+        address_book.save_to_file("address_book.pkl")
+        return f"Email added to contact {name}"
+    except ValueError as e:
+        return f"Error: {e}"
 
 
 def add_address_handler(name, address):
@@ -385,40 +386,35 @@ def print_contact_info(name):
         print(f"Contact {name} not found")
 
 
-def load():
-    address_book.load_from_file('address_book.pkl')
-    return address_book
-
-
-def search_handler(query=None):
-    if query is not None:
-        results = address_book.search(query)
-        if results:
-            return "\n".join(str(record) for record in results)
-        else:
-            return "No matching contacts found"
-    else:
-        return "Please provide a query for search"
-    
-
-def edit_contact_handler(name, new_name):
+def edit_contact(name, new_number):
     record = address_book.find(name)
     if record:
-        record.name.value = new_name
-        address_book.add_record(record)
+        record.phones = []
+        record.add_phone(new_number)
         address_book.save_to_file("address_book.pkl")
-        return f"Contact {name} edited to {new_name}"
+        return f"Contact {name} edited. New phone number: {new_number}"
     else:
         return f"Contact {name} not found"
 
 
-def delete_contact_handler(name):
+def delete_contact(name):
     result = address_book.delete(name)
     address_book.save_to_file("address_book.pkl")
     return result
 
 
+def load():
+    address_book.load_from_file('address_book.pkl')
+    return address_book
+
+
 def main():
+
+    days = 7
+    upcoming_birthdays_list = ["Alice", "Bob", "Charlie"]
+    
+    print("Days:", days)
+    print("Upcoming Birthdays List:", upcoming_birthdays_list)
 
     while True:
 
@@ -451,6 +447,19 @@ def main():
             print(Commands[handler_name](*args))
         else:
             print("No such command")
+    
+    
+def upcoming_birthdays(days):
+    today = datetime.now().date()
+    upcoming_birthdays_list = []
+
+    for record in address_book.data.values():
+        if record.birthday:
+            days_left = record.days_to_birthday()
+            if 0 < days_left <= days:
+                upcoming_birthdays_list.append(record)
+
+    return upcoming_birthdays_list
 
 
 address_book = AddressBook()
@@ -465,9 +474,9 @@ Commands = {
     "add_email": add_email_handler,  # добавление email к контакту работает
     "add_address": add_address_handler,  # добавление адресса к контакту работает
     "info": print_contact_info,  # информация о контакте работает
-    "search": search_handler,
-    "edit_contact": change_handler,
-    "delete_contact": delete_contact_handler
+    "edit": edit_contact,
+    "delete": delete_contact,
+    "upcoming_birthdays": upcoming_birthdays
 
 
 }
