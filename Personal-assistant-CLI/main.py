@@ -390,14 +390,6 @@ def load():
     return address_book
 
 
-def search_handler(query):
-    results = address_book.search(query)
-    if results:
-        return "\n".join(str(record) for record in results)
-    else:
-        return "No matching contacts found"
-
-
 def search_handler(query=None):
     if query is not None:
         results = address_book.search(query)
@@ -407,6 +399,17 @@ def search_handler(query=None):
             return "No matching contacts found"
     else:
         return "Please provide a query for search"
+    
+
+def edit_contact_handler(name, new_name):
+    record = address_book.find(name)
+    if record:
+        record.name.value = new_name
+        address_book.add_record(record)
+        address_book.save_to_file("address_book.pkl")
+        return f"Contact {name} edited to {new_name}"
+    else:
+        return f"Contact {name} not found"
 
 
 def delete_contact_handler(name):
