@@ -4,10 +4,6 @@ import pickle
 from clean import main as clean
 
 
-def sort_folder(file_path):
-    clean(file_path)
-
-
 class Field:
     def __init__(self, value):
         self._value = value
@@ -42,6 +38,27 @@ class Phone(Field):
     @staticmethod
     def validate_phone(phone):
         return len(phone) == 10 and phone.isdigit()
+
+
+class Note(Field):
+    def __init__(self, value, tags=None):
+        super().__init__(value)
+        self.tags = tags if tags else []
+
+    def add_tag(self, tag):
+        if tag not in self.tags:
+            self.tags.append(tag)
+
+    def remove_tag(self, tag):
+        if tag in self.tags:
+            self.tags.remove(tag)
+
+    def search_tag(self, tag):
+        return tag in self.tags
+
+    def __str__(self):
+        tags_info = f"Tags: {', '.join(self.tags)}" if self.tags else ""
+        return f"Note: {self.value} ({tags_info})"
 
 
 class Record:
@@ -268,64 +285,38 @@ def input_error(*type_args):
     return args_parser
 
 
-@input_error(str)
-def add_contact(address_book, name):
-    record = Record(name)
+def add_contact(name):
+    record= Record(name)
     address_book.add_record(record)
+    address_book.save_to_file("address_book.pkl")
     return f"Contact {name} added"
 
-
-@input_error(str, int)
 def add_phone(name, phone):
-    name.add_phone(phone)
-    return f"Add phone:{phone}"
+    record = address_book.find(name)
+    record.add_phone(phone)
+    address_book.add_record(record)
+    address_book.save_to_file("address_book.pkl")
+    return f"Contact {name} Add phone:{phone}"
 
-
-@input_error()
-def hello_handler():
-    return "How can I help you?"
-
-
-@input_error(str, int)
-def change_handler(adsress_book, name, number):
-    record = adsress_book.find(name)
+def change_handler(name, number):
+    record = address_book.find(name)
     if record:
         record.add_phone(number)
+        address_book.save_to_file("address_book.pkl")
         return f"Change name:{name}, phone number:{number}"
     else:
         return f"Contact {name} not found"
 
-
-@input_error(str)
-def phone_handler(adsress_book, name):
-    record = adsress_book.find(name)
+def phone_handler(name):
+    record = address_book.find(name)
     if record:
         return f"Phone number: {record.phone[0].value}" if record.phones else f"No phone number for {name}"
 
-
-class Note(Field):
-    def __init__(self, value, tags=None):
-        super().__init__(value)
-        self.tags = tags if tags else []
-
-    def add_tag(self, tag):
-        if tag not in self.tags:
-            self.tags.append(tag)
-
-    def remove_tag(self, tag):
-        if tag in self.tags:
-            self.tags.remove(tag)
-
-    def search_tag(self, tag):
-        return tag in self.tags
-
-    def __str__(self):
-        tags_info = f"Tags: {', '.join(self.tags)}" if self.tags else ""
-        return f"Note: {self.value} ({tags_info})"
-
+def load():
+    address_book.load_from_file('address_book.pkl')
+    return address_book
 
 def main():
-    address_book = AddressBook()
 
     while True:
 
@@ -338,22 +329,28 @@ def main():
         elif user_input == "show all":
             print(address_book)
             continue
+        elif user_input == "hello":
+            print("How can I help you?")
+            continue
 
         items = user_input.split(" ")
         handler_name, *args = items
 
         if Commands.get(handler_name) is not None:
-            print(Commands[handler_name](address_book, args))
+            print(Commands[handler_name](address_book, *args))
         else:
             print("No such command")
 
+address_book = AddressBook()
+
+Commands = {
+    "sort":clean,
+    "load": load,
+    "add": add_contact,
+    "add_phone":add_phone,
+    "change": change_handler,
+    "phone": phone_handler,
+}
 
 if __name__ == "__main__":
-    Commands = {
-        "hello": hello_handler,
-        "add": add_contact,
-        "change": change_handler,
-        "phone": phone_handler,
-    }
-
     main()
