@@ -286,10 +286,11 @@ def input_error(*type_args):
 
 
 def add_contact(name):
-    record= Record(name)
+    record = Record(name)
     address_book.add_record(record)
     address_book.save_to_file("address_book.pkl")
     return f"Contact {name} added"
+
 
 def add_phone(name, phone):
     record = address_book.find(name)
@@ -297,6 +298,7 @@ def add_phone(name, phone):
     address_book.add_record(record)
     address_book.save_to_file("address_book.pkl")
     return f"Contact {name} Add phone:{phone}"
+
 
 def change_handler(name, number):
     record = address_book.find(name)
@@ -307,14 +309,17 @@ def change_handler(name, number):
     else:
         return f"Contact {name} not found"
 
+
 def phone_handler(name):
     record = address_book.find(name)
     if record:
         return f"Phone number: {record.phone[0].value}" if record.phones else f"No phone number for {name}"
 
+
 def load():
     address_book.load_from_file('address_book.pkl')
     return address_book
+
 
 def main():
 
@@ -341,13 +346,14 @@ def main():
         else:
             print("No such command")
 
+
 address_book = AddressBook()
 
 Commands = {
-    "sort":clean,
+    "sort": clean,
     "load": load,
     "add": add_contact,
-    "add_phone":add_phone,
+    "add_phone": add_phone,
     "change": change_handler,
     "phone": phone_handler,
 }
