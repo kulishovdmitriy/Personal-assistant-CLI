@@ -4,10 +4,6 @@ import pickle
 from clean import main as clean
 
 
-def sort_folder(file_path):
-    clean(file_path)
-
-
 class Field:
     def __init__(self, value):
         self._value = value
@@ -28,6 +24,18 @@ class Name(Field):
     pass
 
 
+class Email(Field):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = value
+
+
+class Address(Field):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = value
+
+
 class Phone(Field):
     def __init__(self, value):
         super().__init__(value)
@@ -44,10 +52,33 @@ class Phone(Field):
         return len(phone) == 10 and phone.isdigit()
 
 
+class Note(Field):
+    def __init__(self, value, tags=None):
+        super().__init__(value)
+        self.tags = tags if tags else []
+
+    def add_tag(self, tag):
+        if tag not in self.tags:
+            self.tags.append(tag)
+
+    def remove_tag(self, tag):
+        if tag in self.tags:
+            self.tags.remove(tag)
+
+    def search_tag(self, tag):
+        return tag in self.tags
+
+    def __str__(self):
+        tags_info = f"Tags: {', '.join(self.tags)}" if self.tags else ""
+        return f"Note: {self.value} ({tags_info})"
+
+
 class Record:
     def __init__(self, name, birthday=None, note=None):
         self.name = Name(name)
         self.phones = []
+        self.email = None
+        self.address = None
         self.birthday = Birthday(birthday) if birthday else None
         self.note = Note(note) if note else None
 
@@ -84,6 +115,22 @@ class Record:
         self.phones = [p for p in self.phones if p.value != phone]
         return "Phone number {phone} removed"
 
+    def add_email(self, email):
+        if self.validate_email(email):
+            self.email = Email(email)
+        else:
+            raise ValueError("Invalid email format")
+
+    def edit_email(self, new_email):
+        if self.validate_email(new_email):
+            self.email.value = new_email
+        else:
+            raise ValueError("Invalid email format")
+
+    @staticmethod
+    def validate_email(email):
+        return '@' in email
+
     def days_to_birthday(self):
         if self.birthday:
             today = datetime.now().date()
@@ -111,12 +158,21 @@ class Record:
     def search_by_tag(self, tag):
         return self.note and self.note.search_tag(tag)
 
+    def add_address(self, address):
+        self.address = Address(address)
+
+    def edit_address(self, new_address):
+        self.address.value = new_address
+
     def __str__(self):
+        phones_info = '; '.join(p.value for p in self.phones)
+        email_info = f", Email: {self.email}" if self.email else ""
+        address_info = f", Address: {self.address}" if self.address else ""
         birthday_info = f", Birthday: {self.birthday.value}" if self.birthday else ""
         note_info = f", {self.note}" if self.note else ""
-        return (f""
-                f"Contact name: {self.name.value}, "
-                f"phones: {'; '.join(p.value for p in self.phones)}{birthday_info}{note_info}")
+
+        return (f"Contact name: {self.name.value}, "
+                f"phones: {phones_info}{email_info}{address_info}{birthday_info}{note_info}")
 
 
 class Birthday(Field):
@@ -268,64 +324,75 @@ def input_error(*type_args):
     return args_parser
 
 
-@input_error(str)
-def add_contact(address_book, name):
+def add_contact(name):
     record = Record(name)
     address_book.add_record(record)
+    address_book.save_to_file("address_book.pkl")
     return f"Contact {name} added"
 
 
-@input_error(str, int)
 def add_phone(name, phone):
-    name.add_phone(phone)
-    return f"Add phone:{phone}"
+    record = address_book.find(name)
+    record.add_phone(phone)
+    address_book.add_record(record)
+    address_book.save_to_file("address_book.pkl")
+    return f"Contact {name} Add phone:{phone}"
 
 
-@input_error()
-def hello_handler():
-    return "How can I help you?"
-
-
-@input_error(str, int)
-def change_handler(adsress_book, name, number):
-    record = adsress_book.find(name)
+def change_handler(name, new_number):
+    record = address_book.find(name)
     if record:
-        record.add_phone(number)
-        return f"Change name:{name}, phone number:{number}"
+        record.phones = []
+        record.add_phone(new_number)
+        address_book.save_to_file("address_book.pkl")
+        return f"Change name:{name}, phone number:{new_number}"
     else:
         return f"Contact {name} not found"
 
 
-@input_error(str)
-def phone_handler(adsress_book, name):
-    record = adsress_book.find(name)
+def phone_handler(name):
+    record = address_book.find(name)
     if record:
-        return f"Phone number: {record.phone[0].value}" if record.phones else f"No phone number for {name}"
+        return f"Phone number: {record.phones[0].value}" if record.phones else f"No phone number for {name}"
 
 
-class Note(Field):
-    def __init__(self, value, tags=None):
-        super().__init__(value)
-        self.tags = tags if tags else []
+def add_email_handler(name, email):
+    record = address_book.find(name)
+    if record:
+        try:
+            record.add_email(email)
+            address_book.save_to_file("address_book.pkl")
+            return f"Email added to contact {name}"
+        except ValueError as e:
+            return f"Error: {e}"
+    else:
+        return f"Contact {name} not found"
 
-    def add_tag(self, tag):
-        if tag not in self.tags:
-            self.tags.append(tag)
 
-    def remove_tag(self, tag):
-        if tag in self.tags:
-            self.tags.remove(tag)
+def add_address_handler(name, address):
+    record = address_book.find(name)
+    if record:
+        record.add_address(address)
+        address_book.save_to_file("address_book.pkl")
+        return f"Address added to contact {name}"
+    else:
+        return f"Contact {name} not found"
 
-    def search_tag(self, tag):
-        return tag in self.tags
 
-    def __str__(self):
-        tags_info = f"Tags: {', '.join(self.tags)}" if self.tags else ""
-        return f"Note: {self.value} ({tags_info})"
+def print_contact_info(name):
+    record = address_book.find(name)
+    if record:
+        print(record)
+    else:
+        print(f"Contact {name} not found")
+
+
+def load():
+    address_book.load_from_file('address_book.pkl')
+    return address_book
 
 
 def main():
-    address_book = AddressBook()
 
     while True:
 
@@ -338,22 +405,42 @@ def main():
         elif user_input == "show all":
             print(address_book)
             continue
+        elif user_input == "hello":
+            print("How can I help you?")
+            continue
+        elif user_input.startswith("add_email"):
+            _, name, email = user_input.split(" ", 2)
+
+        elif user_input.startswith("add_address"):
+            _, name, address = user_input.split(" ", 2)
+
+        elif user_input.startswith("print_contact_info"):
+            _, name = user_input.split(" ", 1)
 
         items = user_input.split(" ")
         handler_name, *args = items
 
         if Commands.get(handler_name) is not None:
-            print(Commands[handler_name](address_book, args))
+            print(Commands[handler_name](*args))
         else:
             print("No such command")
 
 
-if __name__ == "__main__":
-    Commands = {
-        "hello": hello_handler,
-        "add": add_contact,
-        "change": change_handler,
-        "phone": phone_handler,
-    }
+address_book = AddressBook()
 
+Commands = {
+    "sort": clean,
+    "load": load,
+    "add": add_contact,  # создание нового контакта работает
+    "add_phone": add_phone,  # добавление номера к контакту работает
+    "change": change_handler,  # редактирование
+    "phone": phone_handler,  # поиск номера по имени работает
+    "add_email": add_email_handler,  # добавление email к контакту работает
+    "add_address": add_address_handler,  # добавление адресса к контакту работает
+    "info": print_contact_info  # информация о контакте работает
+
+
+}
+
+if __name__ == "__main__":
     main()
