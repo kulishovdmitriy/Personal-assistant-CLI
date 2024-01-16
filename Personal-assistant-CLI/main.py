@@ -1,7 +1,7 @@
 from collections import UserDict
 from datetime import datetime
 import pickle
-from clean import main as clean
+# from clean import main as clean
 
 
 class Field:
@@ -209,6 +209,28 @@ class AddressBook(UserDict):
         self._index += self._chunk_size
         return records_chunk
 
+    def edit_contact(self, name, new_name=None, new_phones=None, new_email=None, new_address=None):
+        record = self.find(name)
+        if record:
+            if new_name:
+                record.name.value = new_name
+            if new_phones:
+                record.phones = [Phone(phone) for phone in new_phones if Phone.validate_phone(phone)]
+            if new_email:
+                record.add_email(new_email)
+            if new_address:
+                record.add_address(new_address)
+            return f"Contact {name} edited successfully"
+        else:
+            return f"Contact {name} not found"
+
+    def delete_contact(self, name):
+        if name in self.data:
+            del self.data[name]
+            return f"Contact {name} deleted"
+        else:
+            return f"Contact {name} not found"
+
     def add_note_to_contact_with_tags(self, name, note_value, tags=None):
         record = self.find(name)
         if record:
@@ -273,121 +295,110 @@ class AddressBook(UserDict):
         except Exception as e:
             print(f"Error when downloading data from a file: {e}")
 
+    def upcoming_birthdays(self, days):
+        today = datetime.now().date()
+        upcoming_birthdays_list = []
+
+        for record in self.data.values():
+            if record.birthday:
+                days_to_birthday = record.days_to_birthday()
+                if 0 < days_to_birthday <= days:
+                    upcoming_birthdays_list.append(record)
+
+        return upcoming_birthdays_list
+
     def search(self, query):
         results = []
         for record in self.data.values():
+            # Пошук за номером телефону
             for phone in record.phones:
                 if query in phone.value:
                     results.append(record)
                     break
 
-        for record in self.data.values():
-            if query.lower() in record.name.value.lower():
-                if record not in results:
-                    results.append(record)
+            # Пошук за ім'ям
+            if query.lower() in record.name.value.lower() and record not in results:
+                results.append(record)
+
+            # Пошук за email
+            if record.email and query in record.email.value and record not in results:
+                results.append(record)
+
+            # Пошук за адресою
+            if record.address and query in record.address.value and record not in results:
+                results.append(record)
+
+            # Пошук за тегами в нотатці
+            if record.note and any(tag in record.note.tags for tag in query.split()):
+                results.append(record)
 
         return results
 
-
-def input_error(*type_args):
-    def args_parser(func):
-        def wrapper(args):
-
-            if len(type_args) != len(args):
-                if len(type_args) == 2:
-                    return "Give me name and phone please"
-                elif len(type_args) == 1:
-                    return "Enter user name"
-                return "Incorrect arguments amount"
-
-            for i in range(len(type_args)):
-                args[i] = type_args[i](args[i])
-            try:
-                res = func(*args)
-            except TypeError as err:
-                print(f"Error: {err}")
-                res = None
-            except ValueError as err:
-                print(f"Handler error: {err}")
-                res = None
-            except KeyError as err:
-                print(f"Handler error: {err}")
-                res = None
-            except IndexError as err:
-                print(f"Handler error: {err}")
-                res = None
-
-            return res
-
-        return wrapper
-
-    return args_parser
-
-
-def add_contact(name):
-    record = Record(name)
-    address_book.add_record(record)
-    address_book.save_to_file("address_book.pkl")
-    return f"Contact {name} added"
-
-
-def add_phone(name, phone):
-    record = address_book.find(name)
-    record.add_phone(phone)
-    address_book.add_record(record)
-    address_book.save_to_file("address_book.pkl")
-    return f"Contact {name} Add phone:{phone}"
-
-
-def change_handler(name, new_number):
-    record = address_book.find(name)
-    if record:
-        record.phones = []
-        record.add_phone(new_number)
+    @staticmethod
+    def add_contact(name):
+        record = Record(name)
+        address_book.add_record(record)
         address_book.save_to_file("address_book.pkl")
-        return f"Change name:{name}, phone number:{new_number}"
+        return f"Contact {name} added"
 
+    @staticmethod
+    def add_phone(name, phone):
+        record = address_book.find(name)
+        record.add_phone(phone)
+        address_book.add_record(record)
+        address_book.save_to_file("address_book.pkl")
+        return f"Contact {name} Add phone:{phone}"
 
-def phone_handler(name):
-    record = address_book.find(name)
-    if record:
-        return f"Phone number: {record.phones[0].value}" if record.phones else f"No phone number for {name}"
-
-
-def add_email_handler(name, email):
-    record = address_book.find(name)
-    if record:
-        try:
-            record.add_email(email)
+    @staticmethod
+    def change_handler(name, new_number):
+        record = address_book.find(name)
+        if record:
+            record.phones = []
+            record.add_phone(new_number)
             address_book.save_to_file("address_book.pkl")
-            return f"Email added to contact {name}"
-        except ValueError as e:
-            return f"Error: {e}"
-    else:
-        return f"Contact {name} not found"
+            return f"Change name:{name}, phone number:{new_number}"
 
+    @staticmethod
+    def phone_handler(name):
+        record = address_book.find(name)
+        if record:
+            return f"Phone number: {record.phones[0].value}" if record.phones else f"No phone number for {name}"
 
-def add_address_handler(name, address):
-    record = address_book.find(name)
-    if record:
-        record.add_address(address)
-        address_book.save_to_file("address_book.pkl")
-        return f"Address added to contact {name}"
-    else:
-        return f"Contact {name} not found"
+    @staticmethod
+    def add_email_handler(name, email):
+        record = address_book.find(name)
+        if record:
+            try:
+                record.add_email(email)
+                address_book.save_to_file("address_book.pkl")
+                return f"Email added to contact {name}"
+            except ValueError as e:
+                return f"Error: {e}"
+        else:
+            return f"Contact {name} not found"
 
+    @staticmethod
+    def add_address_handler(name, address):
+        record = address_book.find(name)
+        if record:
+            record.add_address(address)
+            address_book.save_to_file("address_book.pkl")
+            return f"Address added to contact {name}"
+        else:
+            return f"Contact {name} not found"
 
-def print_contact_info(name):
-    record = address_book.find(name)
-    if record:
-        print(record)
-    else:
-        print(f"Contact {name} not found")
+    @staticmethod
+    def print_contact_info(name):
+        record = address_book.find(name)
+        if record:
+            print(record)
+        else:
+            print(f"Contact {name} not found")
 
-
-def load():
-    address_book.load_from_file('address_book.pkl')
-    return address_book
+    @staticmethod
+    def load():
+        address_book.load_from_file('address_book.pkl')
+        return address_book
 
 
 def main():
@@ -407,40 +418,56 @@ def main():
             print("How can I help you?")
             continue
 
-        elif user_input.startswith("add_email"):
-            _, name, email = user_input.split(" ", 2)
+        elif user_input.startswith("add"):
+            _, command, *args = user_input.split(" ")
+            if command == "contact":
+                print(AddressBook.add_contact(*args))
+            elif command == "phone":
+                print(AddressBook.add_phone(*args))
+            elif command == "email":
+                print(AddressBook.add_email_handler(*args))
+            elif command == "address":
+                print(AddressBook.add_address_handler(*args))
+            else:
+                print("Invalid command")
 
-        elif user_input.startswith("add_address"):
-            _, name, address = user_input.split(" ", 2)
-
-        elif user_input.startswith("print_contact_info"):
+        elif user_input.startswith("info"):
             _, name = user_input.split(" ", 1)
+            AddressBook.print_contact_info(name)
 
-        items = user_input.split(" ")
-        handler_name, *args = items
+        elif user_input.startswith("upcoming_birthdays"):
+            _, days_str = user_input.split(" ", 1)
+            try:
+                days = int(days_str)
+                upcoming_birthdays_list = address_book.upcoming_birthdays(days)
+                print("Upcoming birthdays:")
+                for record in upcoming_birthdays_list:
+                    print(record)
+            except ValueError:
+                print("Invalid number of days")
 
-        if Commands.get(handler_name) is not None:
-            print(Commands[handler_name](*args))
-        else:
-            print("No such command")
+        elif user_input.startswith("search"):
+            _, query = user_input.split(" ", 1)
+            search_results = address_book.search(query)
+            if search_results:
+                print("Search results:")
+                for record in search_results:
+                    print(record)
+            else:
+                print("No matching contacts found.")
+
+        elif user_input.startswith("edit"):
+            _, name, *edit_params = user_input.split(" ")
+            print(AddressBook.edit_contact(name, *edit_params))
+
+        elif user_input.startswith("delete"):
+            _, name = user_input.split(" ")
+            print(AddressBook.delete_contact(name))
 
 
 address_book = AddressBook()
 
-Commands = {
-    "sort": clean,
-    "load": load,
-    "add": add_contact,  # создание нового контакта работает
-    "add_phone": add_phone,  # добавление номера к контакту работает
-    "change": change_handler,  # редактирование
-    "phone": phone_handler,  # поиск номера по имени работает
-    "add_email": add_email_handler,  # добавление email к контакту работает
-    "add_address": add_address_handler,  # добавление адресса к контакту работает
-    "info": print_contact_info  # информация о контакте работает
-
-
-}
-
 
 if __name__ == "__main__":
     main()
+
