@@ -346,8 +346,6 @@ def change_handler(name, new_number):
         record.add_phone(new_number)
         address_book.save_to_file("address_book.pkl")
         return f"Change name:{name}, phone number:{new_number}"
-    else:
-        return f"Contact {name} not found"
 
 
 def phone_handler(name):
@@ -408,6 +406,7 @@ def main():
         elif user_input == "hello":
             print("How can I help you?")
             continue
+
         elif user_input.startswith("add_email"):
             _, name, email = user_input.split(" ", 2)
 
@@ -441,6 +440,7 @@ Commands = {
 
 
 }
+
 
 if __name__ == "__main__":
     main()
