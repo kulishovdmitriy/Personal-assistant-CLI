@@ -342,7 +342,7 @@ def main():
         handler_name, *args = items
 
         if Commands.get(handler_name) is not None:
-            print(Commands[handler_name](address_book, *args))
+            print(Commands[handler_name](*args))
         else:
             print("No such command")
 
